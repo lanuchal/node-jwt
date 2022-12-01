@@ -1,42 +1,35 @@
-require("dotenv").config();
+// require("dotenv").config();
 const db = require("./config/db");
-
+console.log(process.env)
 const {
   hash: hashPassword,
   compare: comparePassword,
 } = require("./utils/password");
 
 const { generate: generateToken, decode: verifyToken } = require("./utils/jwt");
-const { getUser: getUserData } = require("./api/getdata");
+const { getUserData } = require("./api/getdata");
 
 var express = require("express");
 var cors = require("cors");
 var bodyParser = require("body-parser");
 var app = express();
 var jsonParser = bodyParser.json();
+var port = process.env.PORT || 3301;
+
 
 app.use(cors());
 
 app.post("/data", jsonParser, function (req, res, next) {
-  const token = req.headers.authorization;
-  const getUserData2 = getUserData(token);
-  // res.send(getUserData2);
 
-  db.query("SELECT * FROM `user`", function (err, results) {
-    if (err || results.length <= 0) {
-      res.send({
-        status: "error",
-        msg: "data not found",
-      });
-      return;
-    }
-    res.send({
-      status: "success",
-      msg: "token access",
-      code: decoded.result,
-      data: results,
-    });
+  var respond;
+  const tokenInput = req.headers.authorization.split(" ")[1];
+  getUserData(tokenInput, function (err, data) {
+    (err || !data) ?
+      respond = { status: false, msg: "data not found", data: data }
+      : respond = { status: true, msg: "token access", data: data };
+    res.send(JSON.stringify([respond]));
   });
+
 });
 
 app.post("/signIn", jsonParser, function (req, res, next) {
@@ -65,7 +58,7 @@ app.post("/signIn", jsonParser, function (req, res, next) {
         return;
       }
 
-      var token = generateToken(results[0].id);
+      var token = generateToken(results[0].user_id);
 
       res.send({
         status: "success",
@@ -80,7 +73,14 @@ app.post("/signIn", jsonParser, function (req, res, next) {
 app.post("/signUp", jsonParser, function (req, res, next) {
   const name = req.body.name;
   const email = req.body.email;
+  const tokenInput = req.headers.authorization.split(" ")[1];
   const pass = hashPassword(req.body.pass);
+  try {
+    verifyToken(tokenInput)
+
+  } catch (error) {
+
+  }
   db.query(
     "INSERT INTO `user` (`user_mail`, `user_pass`, `user_name`) VALUES (?, ?, ?);",
     [email, pass, name],
@@ -94,6 +94,6 @@ app.post("/signUp", jsonParser, function (req, res, next) {
   );
 });
 
-app.listen(3000, function () {
-  console.log("CORS-enabled web server listening on port 80");
+app.listen(port, function () {
+  console.log("CORS-enabled web server listening on port " + port);
 });
